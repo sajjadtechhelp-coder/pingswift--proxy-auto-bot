@@ -4,48 +4,62 @@ import schedule
 import time
 import threading
 
-# Aapka Bot Token
+# Pre-configured Credentials
 TOKEN = '8267236108:AAFihi1iqTXa_ngwqnjMipWiZOwi35DEMU0'
-# YAAD SE: Niche @YourChannelUsername ki jagah apna channel username likhein
-# Misal ke taur par: CHAT_ID = '@PingSwift_Proxies'
-CHAT_ID = '@YourChannelUsername' 
+CHAT_ID = '@PingSwift_Proxy' 
 
 bot = telebot.TeleBot(TOKEN)
 
 def get_proxies():
     proxies = []
     try:
-        # Dono APIs se data lena
+        # Fetching from API 1: MTProto
         r1 = requests.get('https://mtpro.xyz/api/?type=mtproto').json()
-        proxies.extend(r1)
+        if isinstance(r1, list):
+            proxies.extend(r1)
+        
+        # Fetching from API 2: SOCKS
         r2 = requests.get('https://mtpro.xyz/api/?type=socks').json()
-        proxies.extend(r2)
-    except:
-        pass
-    return proxies[:4] # Sirf pehli 4 proxies
+        if isinstance(r2, list):
+            proxies.extend(r2)
+    except Exception as e:
+        print(f"API Error: {e}")
+    
+    # Return first 4 proxies
+    return proxies[:4]
 
 def send_update():
     data = get_proxies()
     if data:
-        msg = "🔄 **PingSwift Auto Update (30 Mins)**\n\n"
+        message = "🔄 **PingSwift Auto Proxy Update**\n\n"
         for i, p in enumerate(data, 1):
             link = p.get('link') or p.get('proxy_link')
-            msg += f"{i}. 🔗 `{link}`\n\n"
-        bot.send_message(CHAT_ID, msg, parse_mode="Markdown")
+            if link:
+                message += f"{i}. 🔗 `{link}`\n\n"
+        
+        try:
+            bot.send_message(CHAT_ID, message, parse_mode="Markdown")
+            print("Update posted to channel.")
+        except Exception as e:
+            print(f"Post Error: {e}")
 
-# Timer set karna (Har 30 minute baad)
+# Task: Run every 30 minutes
 schedule.every(30).minutes.do(send_update)
 
-def run_timer():
+def run_scheduler():
     while True:
         schedule.run_pending()
         time.sleep(1)
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "PingSwift Bot Online! Proxies har 30 min baad aapke channel mein khud jayengi.")
+    bot.reply_to(message, "PingSwift Bot is fully active! 🚀\nAutomated updates are set for @PingSwift_Proxy.")
 
 if __name__ == "__main__":
-    threading.Thread(target=run_timer, daemon=True).start()
-    print("Bot is starting...")
+    # Send the first update immediately when the bot starts
+    send_update()
+    
+    # Start timer thread
+    threading.Thread(target=run_scheduler, daemon=True).start()
+    print("Bot is running...")
     bot.infinity_polling()
